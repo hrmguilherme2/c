@@ -7,6 +7,17 @@ const port = 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Worker control flag
+let workerEnabled = true;
+
+const setWorkerEnabled = (status) => {
+    workerEnabled = status;
+};
+
+const isWorkerEnabled = () => {
+    return workerEnabled;
+};
+
 // Mimic the PowerShell script's functionality in NodeJS
 const getUserAgent = () => {
     const scriptVersion = "M_37";
@@ -25,17 +36,27 @@ app.post('/connect', (req, res) => {
     const data = req.body;
     const userAgent = getUserAgent();
     console.log(`Received data: ${JSON.stringify(data)}`);
+
+    // Check if worker status is provided and set it
+    if (typeof req.headers['x-worker-status'] !== 'undefined') {
+        const workerStatus = req.headers['x-worker-status'] === '1';
+        setWorkerEnabled(workerStatus);
+        console.log(`Worker status set to: ${workerStatus}`);
+    }
+
     console.log(`User Agent: ${userAgent}`);
-    // Process the data as needed
-    // This could involve logging, storing to a database, or triggering other processes
     res.status(200).send('Data received');
 });
 
 // Endpoint to handle clipboard data change notifications
 app.post('/clipboard-change', (req, res) => {
+    if (!isWorkerEnabled()) {
+        console.log('Worker is disabled. Clipboard processing skipped.');
+        return res.status(403).send('Worker is disabled');
+    }
+
     const { clipboardData } = req.body;
     console.log(`Clipboard data changed: ${clipboardData}`);
-    // Process the clipboard data as needed
     res.status(200).send('Clipboard data processed');
 });
 
@@ -50,4 +71,3 @@ app.post('/log-event', (req, res) => {
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
-
